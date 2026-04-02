@@ -45,11 +45,16 @@ async def cmd_start(message: types.Message):
 # API для сайта (чтобы он видел фильмы)
 @app.get("/movies")
 async def get_movies():
-    async with aiosqlite.connect(DB_NAME) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM movies") as cursor:
-            movies = await cursor.fetchall()
-            return [dict(row) for row in movies]
+    try:
+        async with aiosqlite.connect(DB_NAME) as db:
+            db.row_factory = aiosqlite.Row
+            # Берем только то, что реально есть в твоей таблице
+            async with db.execute("SELECT name, file_id FROM movies") as cursor:
+                movies = await cursor.fetchall()
+                return [dict(row) for row in movies]
+    except Exception as e:
+        print(f"Ошибка БД: {e}")
+        return []
 
 # Запуск
 async def main():
