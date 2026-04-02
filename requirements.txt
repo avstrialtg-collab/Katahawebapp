@@ -1,5 +1,5 @@
+aiogram
+aiosqlite
 fastapi
 uvicorn
-aiosqlite
-aiogram
 pydantic
