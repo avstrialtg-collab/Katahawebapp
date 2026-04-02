@@ -8,7 +8,7 @@ from fastapi import FastAPI
 import uvicorn
 
 # --- НАСТРОЙКИ ---
-TOKEN = "8318172496:AAEy7qjJa-lQZW50Js6CKjLTieo2u8SrmPw"
+TOKEN = "8389025017:AAHoEJhU2saMWfP50pv_d6kbjuiv_GKIliE"
 DB_NAME = "bot_data.db"
 # Твоя ссылка на GitHub Pages
 WEB_APP_URL = "https://avstrialtg-collab.github.io/Katahawebapp/"
