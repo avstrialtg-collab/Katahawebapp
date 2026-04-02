@@ -7,52 +7,31 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            background: radial-gradient(circle at top, #1a1a1a, #000000);
-            color: white;
-            font-family: 'Inter', sans-serif;
-            min-height: 100vh;
-        }
+        body { background: #0f0f0f; color: white; font-family: sans-serif; }
         .movie-card {
             background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: 0.3s;
         }
-        .movie-card:hover {
-            transform: translateY(-5px);
-            border-color: #ff3e3e;
-            box-shadow: 0 10px 30px rgba(255, 62, 62, 0.2);
-        }
-        .rating-badge {
-            background: linear-gradient(90deg, #ff3e3e, #800000);
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade { animation: fadeIn 0.6s ease forwards; }
+        .movie-card:hover { border-color: #ef4444; }
     </style>
 </head>
 <body class="p-4">
-    <header class="text-center mb-8 animate-fade">
-        <h1 class="text-3xl font-bold tracking-tighter text-red-600">KATAHA</h1>
+    <header class="text-center mb-6">
+        <h1 class="text-3xl font-bold text-red-600">KATAHA</h1>
         <p class="text-gray-400 text-sm">ВЫБЕРИ СВОЙ ФИЛЬМ</p>
     </header>
 
     <div id="loader" class="flex justify-center items-center h-64">
-        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-red-600"></div>
+        <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-red-600"></div>
     </div>
 
-    <div id="movie-grid" class="grid grid-cols-1 gap-4">
-        </div>
+    <div id="movie-grid" class="grid grid-cols-1 gap-4"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
-        tg.ready();
 
-        // Замени на URL своего сервера (например, от Render или твоего VPS)
         const API_URL = "https://katahawebapp.onrender.com";
 
         async function loadMovies() {
@@ -64,35 +43,34 @@
                 
                 loader.style.display = 'none';
                 
-                movies.forEach((movie, index) => {
-                    const rating = movie.count > 0 ? (movie.sum_rating / movie.count).toFixed(1) : "0.0";
+                if (!movies || movies.length === 0) {
+                    grid.innerHTML = '<p class="text-center text-gray-500">Список пуст</p>';
+                    return;
+                }
+                
+                movies.forEach(movie => {
                     const card = document.createElement('div');
-                    card.className = 'movie-card p-4 rounded-2xl flex justify-between items-center animate-fade';
-                    card.style.animationDelay = `${index * 0.1}s`;
-                    
+                    card.className = 'movie-card p-4 rounded-xl flex justify-between items-center';
                     card.innerHTML = `
                         <div>
-                            <h3 class="font-bold text-lg uppercase">${movie.name}</h3>
-                            <span class="rating-badge text-xs px-2 py-1 rounded-full">★ ${rating}</span>
+                            <h3 class="font-bold uppercase">${movie.name}</h3>
+                            <span class="text-xs text-red-500 font-bold text-gray-400">★ NEW</span>
                         </div>
                         <button onclick="watchMovie('${movie.name}', '${movie.file_id}')" 
-                                class="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-xl font-bold transition-colors">
+                                class="bg-red-600 px-4 py-2 rounded-lg font-bold text-sm">
                             СМОТРЕТЬ
                         </button>
                     `;
                     grid.appendChild(card);
                 });
             } catch (e) {
-                console.error("Ошибка загрузки:", e);
+                document.getElementById('loader').innerHTML = '<p class="text-red-500">Ошибка сервера</p>';
             }
         }
 
         async function watchMovie(name, fileId) {
             const userId = tg.initDataUnsafe.user?.id;
-            if (!userId) return alert("Ошибка авторизации в Telegram");
-
-            tg.MainButton.setText("ОТПРАВЛЯЕМ В ЧАТ...");
-            tg.MainButton.show();
+            if (!userId) return alert("Запустите через Telegram");
 
             try {
                 await fetch(`${API_URL}/select_movie`, {
@@ -106,8 +84,7 @@
                 });
                 tg.close();
             } catch (e) {
-                alert("Ошибка соединения с сервером");
-                tg.MainButton.hide();
+                alert("Ошибка связи с ботом");
             }
         }
 
