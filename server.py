@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from aiogram import Bot
 
 # Используем данные из твоего bot.py
-TOKEN = "8318172496:AAEy7qjJa-lQZW50Js6CKjLTieo2u8SrmPw"
+TOKEN = "8389025017:AAHoEJhU2saMWfP50pv_d6kbjuiv_GKIliE"
 DB_NAME = "bot_data.db"
 
 app = FastAPI()
