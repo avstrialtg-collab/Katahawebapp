@@ -2,84 +2,62 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { background: #000; color: #fff; font-family: sans-serif; text-align: center; }
-        #loader { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: red; }
-        .movie-card { border: 1px solid #333; padding: 10px; margin: 10px; cursor: pointer; border-radius: 8px; }
-        #grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
+        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 20px; }
+        #loader { text-align: center; margin-top: 50px; color: #ff0000; font-weight: bold; }
+        .movie-card { background: #1a1a1a; border: 1px solid #333; padding: 15px; margin-bottom: 10px; border-radius: 10px; text-align: center; }
+        .movie-card:active { background: #333; }
     </style>
 </head>
 <body>
-    <div id="loader">ЗАГРУЗКА...</div>
+    <div id="loader">ЗАГРУЗКА СПИСКА...</div>
     <div id="grid"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.ready(); // Сообщаем Telegram, что приложение загружено
-        tg.expand(); // Разворачиваем на весь экран
-
-        const user_id = tg.initDataUnsafe?.user?.id || 0;
+        tg.ready();
+        tg.expand();
 
         async function loadMovies() {
             const loader = document.getElementById('loader');
             const grid = document.getElementById('grid');
-
+            
             try {
                 const response = await fetch('/movies');
                 const data = await response.json();
 
                 if (data.error) {
-                    loader.innerText = "Ошибка БД: " + data.error;
+                    loader.innerText = "Ошибка: " + data.error;
                     return;
                 }
 
-                if (data.length === 0) {
-                    loader.innerText = "Список фильмов пуст";
-                    return;
-                }
+                loader.style.display = 'none';
+                grid.innerHTML = ''; // Очищаем
 
                 data.forEach(movie => {
-                    const card = document.createElement('div');
-                    card.className = 'movie-card';
-                    card.innerHTML = `<strong>${movie.name}</strong>`;
-                    card.onclick = () => selectMovie(movie.name, movie.file_id);
-                    grid.appendChild(card);
+                    const div = document.createElement('div');
+                    div.className = 'movie-card';
+                    div.innerHTML = `<strong>${movie.name}</strong>`;
+                    div.onclick = () => sendMovie(movie.name, movie.file_id);
+                    grid.appendChild(div);
                 });
-
-                loader.style.display = 'none'; // Прячем загрузку при успехе
-
             } catch (e) {
-                console.error(e);
-                loader.innerText = "Ошибка связи с сервером";
+                loader.innerText = "Сервер недоступен";
             }
         }
 
-        async function selectMovie(name, fileId) {
-            if (!user_id) {
-                alert("Ошибка: ID пользователя не найден");
-                return;
-            }
+        async function sendMovie(name, fileId) {
+            const userId = tg.initDataUnsafe?.user?.id;
+            if (!userId) return alert("Ошибка Telegram ID");
 
-            try {
-                const res = await fetch('/select_movie', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        user_id: user_id,
-                        movie_name: name,
-                        file_id: fileId
-                    })
-                });
-                
-                if (res.ok) {
-                    tg.close(); // Закрываем WebApp после выбора
-                } else {
-                    alert("Ошибка при отправке фильма");
-                }
-            } catch (e) {
-                alert("Ошибка сети");
-            }
+            await fetch('/select_movie', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, movie_name: name, file_id: fileId })
+            });
+            tg.close();
         }
 
         loadMovies();
