@@ -2,97 +2,113 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>KATAHA</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&display=swap');
         
         body {
             background-color: #000;
             color: #fff;
-            font-family: 'Oswald', sans-serif;
+            font-family: 'Syncopate', sans-serif;
             margin: 0;
-            padding: 10px;
+            padding: 15px;
+            overflow-x: hidden;
         }
+
+        /* Убираем скроллбар */
+        ::-webkit-scrollbar { width: 0; }
 
         /* Карточка фильма */
         .movie-card {
             background: #000;
-            border: 1px solid #222;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid #1a1a1a;
+            position: relative;
+            overflow: hidden;
             opacity: 0;
-            transform: scale(0.9);
+            transform: translateY(20px);
+            transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
         }
 
-        .movie-card.loaded {
+        .movie-card.show {
             opacity: 1;
-            transform: scale(1);
+            transform: translateY(0);
         }
 
-        .movie-card:hover {
-            border-color: #fff;
-            box-shadow: 0 0 15px rgba(255,255,255,0.1);
+        .movie-card:active {
+            transform: scale(0.97);
+            border-color: #555;
         }
 
-        /* Обложка */
-        .cover {
+        /* Обложка (Черно-белая по умолчанию) */
+        .movie-poster {
             width: 100%;
-            height: 220px;
+            height: 250px;
             object-fit: cover;
-            filter: grayscale(100%) contrast(120%);
-            border-bottom: 1px solid #222;
+            filter: grayscale(100%) contrast(1.1);
             transition: 0.5s;
         }
 
-        .movie-card:hover .cover {
+        .movie-card:hover .movie-poster {
             filter: grayscale(0%);
         }
 
-        /* Кнопка */
-        .watch-btn {
-            background: #fff;
-            color: #000;
-            font-weight: bold;
+        /* Рейтинг */
+        .rating-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #333;
+            padding: 2px 6px;
+            font-size: 10px;
+            color: #fff;
+        }
+
+        .movie-info {
+            padding: 10px;
+            border-top: 1px solid #1a1a1a;
+        }
+
+        .movie-title {
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 1px;
-            transition: 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .watch-btn:active {
-            transform: scale(0.95);
-            background: #ccc;
-        }
-
-        .rating-box {
-            font-size: 11px;
-            color: #666;
-            letter-spacing: 2px;
-        }
-
-        /* Кастомный лоадер */
-        #main-loader {
+        /* Анимация загрузки */
+        #loader {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            z-index: 100;
         }
-        .spinner {
-            width: 30px;
-            height: 30px;
-            border: 2px solid #222;
-            border-top: 2px solid #fff;
-            border-radius: 50%;
-            animation: rotate 0.8s linear infinite;
+        .scanline {
+            width: 40px;
+            height: 2px;
+            background: #fff;
+            animation: scan 1.5s infinite;
         }
-        @keyframes rotate { 100% { transform: rotate(360deg); } }
+        @keyframes scan {
+            0% { transform: scaleX(0); opacity: 0; }
+            50% { transform: scaleX(1); opacity: 1; }
+            100% { transform: scaleX(0); opacity: 0; }
+        }
     </style>
 </head>
 <body>
 
-    <div id="main-loader"><div class="spinner"></div></div>
-    <div id="movie-grid" class="grid grid-cols-2 gap-4"></div>
+    <div id="loader"><div class="scanline"></div></div>
+
+    <div id="grid" class="grid grid-cols-2 gap-4 pt-4"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
@@ -100,65 +116,54 @@
         tg.headerColor = '#000000';
         tg.backgroundColor = '#000000';
 
-        const API_URL = "https://katahawebapp.onrender.com";
-
-        async function loadMovies() {
+        async function init() {
             try {
-                const response = await fetch(`${API_URL}/movies`);
-                const movies = await response.json();
-                const grid = document.getElementById('movie-grid');
-                document.getElementById('main-loader').style.display = 'none';
+                const res = await fetch('/movies');
+                const movies = await res.json();
+                const container = document.getElementById('grid');
+                document.getElementById('loader').style.display = 'none';
 
-                movies.forEach((movie, index) => {
-                    // Считаем рейтинг из БД
-                    const rating = movie.count > 0 ? (movie.sum_rating / movie.count).toFixed(1) : "0.0";
-                    
-                    const card = document.createElement('div');
-                    card.className = 'movie-card flex flex-col overflow-hidden';
-                    
-                    // Генерируем обложку на основе file_id (уникальное фото для каждого фильма)
-                    const coverUrl = `https://picsum.photos/seed/${movie.file_id}/400/600`;
+                movies.forEach((m, i) => {
+                    const rating = m.count > 0 ? (m.sum_rating / m.count).toFixed(1) : "0.0";
+                    // Генерация обложки по file_id для уникальности
+                    const poster = `https://picsum.photos/seed/${m.file_id}/300/450`;
 
-                    card.innerHTML = `
-                        <img src="${coverUrl}" class="cover" alt="film">
-                        <div class="p-3">
-                            <h2 class="text-sm font-bold truncate uppercase mb-2">${movie.name}</h2>
-                            <div class="rating-box mb-3">★ ${rating} / 10.0</div>
-                            <button onclick="watchMovie('${movie.name}', '${movie.file_id}')" 
-                                    class="watch-btn w-full py-2 text-xs">
-                                WATCH
-                            </button>
+                    const el = document.createElement('div');
+                    el.className = 'movie-card';
+                    el.innerHTML = `
+                        <div class="rating-badge">★ ${rating}</div>
+                        <img src="${poster}" class="movie-poster" alt="poster" loading="lazy">
+                        <div class="movie-info">
+                            <div class="movie-title">${m.name}</div>
                         </div>
                     `;
-                    grid.appendChild(card);
                     
-                    // Анимация появления с задержкой
-                    setTimeout(() => card.classList.add('loaded'), index * 100);
+                    el.onclick = () => select(m.name, m.file_id);
+                    container.appendChild(el);
+                    
+                    // Плавное появление
+                    setTimeout(() => el.classList.add('show'), i * 80);
                 });
-            } catch (e) {
-                console.error("Load error:", e);
+            } catch (err) {
+                console.error("Fetch error:", err);
             }
         }
 
-        async function watchMovie(name, fileId) {
-            tg.HapticFeedback.impactOccurred('heavy');
-            try {
-                await fetch(`${API_URL}/select_movie`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        user_id: tg.initDataUnsafe.user?.id,
-                        movie_name: name,
-                        file_id: fileId
-                    })
-                });
-                tg.close();
-            } catch (e) {
-                alert("SERVER ERROR");
-            }
+        async function select(name, fid) {
+            tg.HapticFeedback.impactOccurred('medium');
+            await fetch('/select_movie', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    user_id: tg.initDataUnsafe.user?.id,
+                    movie_name: name,
+                    file_id: fid
+                })
+            });
+            tg.close();
         }
 
-        loadMovies();
+        init();
     </script>
 </body>
 </html>
